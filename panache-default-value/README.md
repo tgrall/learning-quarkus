@@ -1,4 +1,4 @@
-# learning-quarkus
+# Learning-quarkus : Default Values for Panache Entity Fields 
 
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
