@@ -9,3 +9,4 @@ Sharing my findings while learning Quarkus.
 
 
 - [Setting Default Values for your Panache Entities](./panache-default-value/)
+- [Using Projections when using a Reference Table](./projection-with-panache/)
