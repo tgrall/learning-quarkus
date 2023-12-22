@@ -5,7 +5,9 @@ import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.models.BlobHttpHeaders;
+import com.azure.storage.blob.models.BlobStorageException;
 import com.azure.storage.blob.models.PublicAccessType;
+import com.azure.storage.blob.options.BlobContainerCreateOptions;
 import io.quarkus.logging.Log;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -15,7 +17,6 @@ import org.jboss.resteasy.reactive.PartType;
 import org.jboss.resteasy.reactive.RestForm;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 
-import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,19 +34,10 @@ public class BoardResource {
     BlobServiceClient azureBlobServiceClient;
 
     public static class BoardMetadata {
-        public long getId() {
-            return id;
-        }
-
-        public void setId(long id) {
-            this.id = id;
-        }
-
         public long id;
         public String brand;
         public int year;
         public String slug;
-
         public BoardMetadata() {
         }
     }
@@ -53,6 +45,7 @@ public class BoardResource {
     @POST
     @Path("/picture{/cloud?}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.APPLICATION_JSON)
     public Response upload(
             @RestForm @PartType(MediaType.APPLICATION_JSON) BoardMetadata board,
             @RestForm("picture") FileUpload picture,
@@ -61,16 +54,22 @@ public class BoardResource {
         Map<String, Object> json = new HashMap<>();
         json.put("board_id", board.id);
 
-
-        switch (cloud) {
-            case "azure" -> {
-                String url = uploadToAzure(picture, board);
-                json.put("url", url);
+        try {
+            switch (cloud) {
+                case "azure" -> {
+                    String url = uploadToAzure(picture, board);
+                    json.put("url", url);
+                }
+                case "aws" -> uploadToAWS(picture, board);
+                case "gcp" -> uploadToGCP(picture, board);
+                default -> {
+                }
             }
-            case "aws" -> uploadToAWS(picture, board);
-            case "gcp" -> uploadToGCP(picture, board);
-            default -> {
-            }
+        } catch (Exception e) {
+            Log.error("An error occurred while processing the request", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("An error occurred while processing the request: " + e.getMessage())
+                    .build();
         }
 
         return Response.ok(json).status(CREATED).build();
@@ -81,21 +80,23 @@ public class BoardResource {
         String container = "catalog";
         String extension = getExtensionByStringHandling(picture.fileName()).orElse("jpg");
         String blobName = board.brand + "/" + board.year + "/" + board.slug +"." + extension;
-        BlobContainerClient blobContainerClient = azureBlobServiceClient.createBlobContainerWithResponse(container, Collections.emptyMap(), PublicAccessType.BLOB, Context.NONE).getValue();
-        BlobHttpHeaders headers = new BlobHttpHeaders();
-        headers.setContentType(picture.contentType());
-        BlobClient blobClient = blobContainerClient.getBlobClient(blobName);
-        blobClient.uploadFromFile(picture.uploadedFile().toAbsolutePath().toString(), true);
-        blobClient.setHttpHeaders(headers);
-        return blobClient.getBlobUrl();
+        try {
+            Map<String, String> metadata = Collections.singletonMap("metadata", "value");
+            BlobContainerCreateOptions options =
+                    new BlobContainerCreateOptions().setMetadata(metadata).setPublicAccessType(PublicAccessType.BLOB);
+            BlobContainerClient blobContainerClient =
+                    azureBlobServiceClient.createBlobContainerIfNotExistsWithResponse(container, options, Context.NONE).getValue();
+            BlobHttpHeaders headers = new BlobHttpHeaders();
+            headers.setContentType(picture.contentType());
+            BlobClient blobClient = blobContainerClient.getBlobClient(blobName);
+            blobClient.uploadFromFile(picture.uploadedFile().toAbsolutePath().toString(), true);
+            blobClient.setHttpHeaders(headers);
+            return blobClient.getBlobUrl();
+        } catch (BlobStorageException e) {
+            throw new RuntimeException("An error occurred while uploading the file to Azure Blob Storage: " + e.getErrorCode() + " - " + e.getStatusCode() );
+        }
     }
 
-    /**
-     * Upload to GCP
-     * @param picture
-     * @param board
-     * @return
-     */
     private String uploadToAWS(FileUpload picture, BoardMetadata board) {
 
         Log.info("Uploading to AWS: " + board.slug);
@@ -103,12 +104,6 @@ public class BoardResource {
         return board.slug;
     }
 
-    /**
-     * Upload to GCP
-     * @param picture
-     * @param board
-     * @return
-     */
     private String uploadToGCP(FileUpload picture, BoardMetadata board) {
 
         Log.info("Uploading to GCP: " + board.slug);
