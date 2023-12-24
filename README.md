@@ -10,3 +10,4 @@ Sharing my findings while learning Quarkus.
 
 - [Setting Default Values for your Panache Entities](./panache-default-value/)
 - [Database Projection with Panache](./projection-with-panache/)
+- [Upload image to the Cloud with Quarkus](./upload-image)
