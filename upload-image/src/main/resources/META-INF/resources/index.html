@@ -70,7 +70,7 @@
                 font-size: 3.5rem;
                 margin: 0;
                 padding-top: 5rem;
-                grid-column: span 8;
+                grid-column: span 12;
             }
             .app-details {
                 margin: 1rem 0;
@@ -120,21 +120,6 @@
             }
             .right-column {
                 grid-column: span 4;
-                margin-top: 1rem;
-                font-weight: 200;
-            }
-            .right-column h5 {
-                padding: 1rem 0 .25rem 0;
-                margin: 0;
-                font-weight: 300;
-            }
-            .right-column h3 { font-weight: 400;}
-            .right-column ul {
-                margin: 0;
-                list-style-type: circle;
-            }
-            .right-column li {
-                padding: .5rem 0 0 0;
             }
             .provided-code {
                 line-height: 20px;
@@ -178,6 +163,48 @@
                 }
             }
         </style>
+
+
+<!-- create a javascript function to upload the file using fetch post -->
+<script>
+    function uploadFile() {
+        const formData = new FormData();
+        const pictureField = document.getElementById("picture");
+        const idField = document.getElementById("id");
+        const idYear = document.getElementById("year");
+        const idBrand = document.getElementById("brand");
+        const idSlug = document.getElementById("slug");
+
+        const cloudField = document.getElementById("cloud");
+
+        const board = {
+            id: idField.value,
+            year: idYear.value,
+            brand: idBrand.value,
+            slug: idSlug.value
+        };
+
+        formData.append('picture', pictureField.files[0]);
+        formData.append('board', JSON.stringify(board));
+
+        const url = '/api/v1/boards/picture/' + cloudField.selectedOptions[0].value ;
+
+        fetch(url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(response => {
+                console.log('Success:', JSON.stringify(response))
+                document.getElementById("imageviewer").innerHTML = '<img src="' + response.url + '" width="200" height="200" />';
+                document.getElementById("imageviewer").innerHTML += '<br/><a href="' + response.url + '" target="_blank">Open in new tab</a>';
+            })
+            .catch(error => {
+                console.error(error);
+        })
+    }
+</script>
+
     </head>
     <body>
         <div class="header-wrapper">
@@ -231,16 +258,7 @@
             <div class="grid">
                 <div class="banner">
                     <div class="grid">
-                        <div class="callout">Congratulations!</div>
-                        <div class="app-details">
-                            <h5>Application</h5>
-                            <ul>
-                                <li>GroupId: <code>org.windr.demo</code></li>
-                                <li>ArtifactId: <code>upload-image</code></li>
-                                <li>Version: <code>1.0.0-SNAPSHOT</code></li>
-                                <li>Quarkus Version: <code>3.6.3</code></li>
-                            </ul>
-                        </div>
+                        <div class="callout">Learning Quarkus</div>
                     </div>
                 </div>
             </div>
@@ -248,36 +266,56 @@
         <div class="content-wrapper">
             <div class="grid">
                 <div class="left-column">
-                    <h1>You just made a Quarkus application.</h1>
-                    <p>This page is served by Quarkus.</p>
-                    <a href="/q/dev-ui/" class="cta-button">Visit the Dev UI</a>
-                    <p>This page: <code>src/main/resources/META-INF/resources/index.html</code></p>
-                    <p>App configuration: <code>src/main/resources/application.properties</code></p>
-                    <p>Static assets: <code>src/main/resources/META-INF/resources/</code></p>
-                    <p>Code: <code>src/main/java</code></p>
-                    <p>Generated starter code:</p>
-                    <ul class="provided-code">
-                                <li class="provided-code">
-            <b>RESTEasy Reactive</b>&nbsp;Easily start your Reactive RESTful Web Services
-            <br />&rsaquo; <code>@Path: <a href="/hello" class="path-link" target="_blank">/hello</a></code>
-            <br />&rsaquo; <a href="https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources" class="guide-link" target="_blank">Related guide</a>
-        </li>
+                    <h1>Upload an image with Quarkus</h1>
 
-                    </ul>
+                    <!-- Create a selecte list with the 3 cloud provider -->
+                    <form action="/upload" method="post" enctype="multipart/form-data">
+                        <label for="cloud">Choose a cloud provider:</label>
+                        <select name="cloud" id="cloud">
+                            <option value="aws">AWS S3 </option>
+                            <option value="azure">Azure Cloud Storage</option>
+                            <option value="gcp">Google Cloud Storage</option>
+                        </select>
+                        <br><br>
+
+                        <label for="id">
+                        Board ID :
+                        </label>
+                        <input type="number" name="id" id="id" value="5" aria-label="Board ID" />
+                        <br><br>
+
+                        <label for="year">
+                        Year :
+                        </label>
+                        <input type="number" name="year" id="year" value="2024" aria-label="Year" />
+                        <br><br>
+
+                        <label for="brand">
+                        Brand :
+                        </label>
+                        <input type="text" name="brand" id="brand" value="duotone" aria-label="Brand" />
+                        <br><br>
+
+                        <label for="slug">
+                        Slug :
+                        </label>
+                        <input type="text" name="slug" id="slug" value="duotone-2024-falcon" aria-label="Slug" />
+                        <br><br>
+
+                        <label for="picture">Select a file:</label>
+                        <input type="file" id="picture" name="picture" accept="image/png, image/jpeg">
+                        <br><br>
+
+                        <!-- button that call the uploadFile function -->
+                        <button type="button" onclick="uploadFile()">Upload</button>
+
+
+
                 </div>
                 <div class="right-column">
-                    <h3>Selected extensions</h3>
-                    <ul>
-                        <li title="Validate object properties (field, getter) and method parameters for your beans (REST, CDI, Jakarta Persistence)">Hibernate Validator (<a href="https://quarkus.io/guides/validation" target="_blank">guide</a>)</li>
-                        <li title="A Jakarta REST implementation utilizing build time processing and Vert.x. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it.">RESTEasy Reactive (<a href="https://quarkus.io/guides/resteasy-reactive" target="_blank">guide</a>)</li>
-                        <li title="Jackson serialization support for REST Client Reactive">RESTEasy Reactive's REST Client Jackson</li>
-                    </ul>
-                    <h5><a href="https://quarkus.io/guides/">Documentation</a></h5>
-                    <p>Practical step-by-step guides to help you achieve a specific goal. Use them to help get your work
-                        done.</p>
-                    <h5><a href="https://quarkus.io/guides/maven-tooling">Set up your IDE</a></h5>
-                    <p>Everyone has a favorite IDE they like to use to code. Learn how to configure yours to maximize your
-                        Quarkus productivity.</p>
+                    <div id="imageviewer">
+
+                    </div>
                 </div>
             </div>
         </div>
